@@ -1,6 +1,7 @@
 package controller
 
 type Config struct {
+	ConsulHost           string            `mapstructure:"ConsulHost"`
 	ListenIP             string            `mapstructure:"ListenIP"`
 	SendIP               string            `mapstructure:"SendIP"`
 	UpdatePeriodic       int               `mapstructure:"UpdatePeriodic"`

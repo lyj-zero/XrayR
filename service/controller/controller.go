@@ -12,6 +12,7 @@ import (
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/task"
 	"github.com/xtls/xray-core/core"
+	"github.com/XrayR-project/XrayR/api/consul"
 )
 
 type Controller struct {
@@ -44,6 +45,11 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return err
 	}
+	if c.config.ConsulHost != "" {
+		cs := consul.New(c.config.UpdatePeriodic, c.config.ConsulHost, newNodeInfo)
+		cs.Post()
+	}
+	log.Println(newNodeInfo)
 	c.nodeInfo = newNodeInfo
 	c.Tag = c.buildNodeTag()
 	// Add new tag

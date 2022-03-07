@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	io "io/ioutil"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -23,7 +24,7 @@ var (
 	hostRe        = regexp.MustCompile(`(?m)host=([\w\.]+)\|?`)       // Host
 	enableXtlsRe  = regexp.MustCompile(`(?m)enable_xtls=(\w+)\|?`)    // EnableXtls
 	enableVlessRe = regexp.MustCompile(`(?m)enable_vless=(\w+)\|?`)   // EnableVless
-
+	NodeIDRe      = regexp.MustCompile("[0-9]+")   					  // NodeID
 )
 
 // APIClient create a api client to the panel.
@@ -67,10 +68,12 @@ func New(apiConfig *api.Config) *APIClient {
 	client.SetQueryParam("muKey", apiConfig.Key)
 	// Read local rule list
 	localRuleList := readLocalRuleList(apiConfig.RuleListPath)
+	
+	NodeID := readLocalNodeID(apiConfig.NodeID)
 
 	return &APIClient{
 		client:              client,
-		NodeID:              apiConfig.NodeID,
+		NodeID:              NodeID,
 		Key:                 apiConfig.Key,
 		APIHost:             apiConfig.APIHost,
 		NodeType:            apiConfig.NodeType,
@@ -83,7 +86,25 @@ func New(apiConfig *api.Config) *APIClient {
 		LastReportOnline:    make(map[int]int),
 	}
 }
+func readLocalNodeID(id int) int {
+	if id != 0 {
+		return id
+	}
+	host, err := io.ReadFile("/etc/XrayR/hostname")
+	if err != nil {
+		log.Printf("Error when opening file: %s", err)
+	}
 
+	if result := NodeIDRe.FindStringSubmatch(string(host)); len(result) >= 1 {
+		Nodeid, err := strconv.Atoi(result[0])
+		if err != nil {
+			log.Printf("Error : %s", err)
+		}
+		return Nodeid
+	}
+
+	return 0
+}
 // readLocalRuleList reads the local rule list file
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 
@@ -154,6 +175,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 // GetNodeInfo will pull NodeInfo Config from sspanel
 func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
+
 	res, err := c.client.R().
 		SetResult(&Response{}).
 		ForceContentType("application/json").
